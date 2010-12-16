@@ -38,13 +38,12 @@
 #define CONFIG_OMAP              1    /* in a TI OMAP core */
 #define CONFIG_OMAP34XX          1    /* which is a 34XX */
 #define CONFIG_OMAP3430          1    /* which is in a 3430 */
-//#define CONFIG_3430SDP           1    /* working with SDP */
-//#define CONFIG_3430_AS_3410	 1    /* true for 3430 in 3410 mode */
 
 #define CONFIG_BUGBASE2          1    /* working with BUGBASE2 */
 
 /* Enable the below macro if MMC boot support is required */
 #define CONFIG_MMC               1
+//#undef CONFIG_MMC
 #if defined(CONFIG_MMC)
 	#define CFG_CMD_MMC              1
 	#define CFG_CMD_FAT              1

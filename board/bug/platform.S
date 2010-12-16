@@ -406,6 +406,7 @@ per_dpll_param:
 
 /* 13MHz */
 .word 0x1B0
+/*.word 0x360*/
 .word 0x0C
 .word 0x03
 .word 0x09
@@ -433,3 +434,43 @@ get_per_dpll_param:
 	adr r0, per_dpll_param
 	mov pc, lr
 
+/*
+ * Tables for 36XX/37XX devices
+ *
+ */
+
+per_36x_dpll_param:
+/* 12MHz */
+.word 0xD8
+.word 0x05
+.word 0x07
+.word 0x09
+
+/* 13MHz */
+.word 0x360
+.word 0x0C
+.word 0x03
+.word 0x09
+
+/* 19.2MHz */
+.word 0xE1
+.word 0x09
+.word 0x07
+.word 0x09
+
+/* 26MHz */
+.word 0x1B0
+.word 0x0C
+.word 0x07
+.word 0x09
+
+/* 38.4MHz */
+.word 0xE1
+.word 0x13
+.word 0x07
+.word 0x09
+
+.globl get_36x_per_dpll_param
+get_36x_per_dpll_param:
+	adr	r0, per_36x_dpll_param
+	mov	pc, lr

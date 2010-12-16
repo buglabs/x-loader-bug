@@ -145,21 +145,70 @@ u32 get_mem_type( void )
 }
 
 /******************************************
+ * get_cpu_id(void) - extract cpu id
+ * returns 0 for ES1.0, cpuid otherwise
+ ******************************************/
+u32 get_cpu_id(void)
+{
+	u32 cpuid = 0;
+
+	/*
+	 * On ES1.0 the IDCODE register is not exposed on L4
+	 * so using CPU ID to differentiate between ES1.0 and > ES1.0.
+	 */
+	__asm__ __volatile__("mrc p15, 0, %0, c0, c0, 0":"=r"(cpuid));
+	if ((cpuid & 0xf) == 0x0) {
+		return 0;
+	} else {
+		/* Decode the IDs on > ES1.0 */
+		cpuid = __raw_readl(OMAP34XX_ID_L4_IO_BASE + 4);
+	}
+
+	return cpuid;
+}
+
+/******************************************
  * get_cpu_rev(void) - extract version info
  ******************************************/
 u32 get_cpu_rev(void)
 {
-	u32 cpuid=0;
-	/* On ES1.0 the IDCODE register is not exposed on L4
-	 * so using CPU ID to differentiate
-	 * between ES2.0 and ES1.0.
-	 */
-	__asm__ __volatile__("mrc p15, 0, %0, c0, c0, 0":"=r" (cpuid));
-	if((cpuid  & 0xf) == 0x0)
-		return CPU_3430_ES1;
-	else
-		return CPU_3430_ES2;
+	u32 cpuid = get_cpu_id();
 
+	if(cpuid == 0x0)
+		return CPU_3XX_ES10;
+	else
+		return (cpuid >> CPU_3XX_ID_SHIFT) & 0xf;
+
+}
+
+/******************************************
+ * get_cpu_family(void) - extract cpu info
+ ******************************************/
+u32 get_cpu_family(void)
+{
+	u16 hawkeye;
+	u32 cpu_family;
+	u32 cpuid = get_cpu_id();
+
+	if (cpuid == 0)
+		return CPU_OMAP34XX;
+
+	hawkeye = (cpuid >> HAWKEYE_SHIFT) & 0xffff;
+	switch (hawkeye) {
+	case HAWKEYE_OMAP34XX:
+		cpu_family = CPU_OMAP34XX;
+		break;
+	case HAWKEYE_AM35XX:
+		cpu_family = CPU_AM35XX;
+		break;
+	case HAWKEYE_OMAP36XX:
+		cpu_family = CPU_OMAP36XX;
+		break;
+	default:
+		cpu_family = CPU_OMAP34XX;
+	}
+
+	return cpu_family;
 }
 
 /******************************************
@@ -168,7 +217,7 @@ u32 get_cpu_rev(void)
 u32 cpu_is_3410(void)
 {
 	int status;
-	if(get_cpu_rev() < CPU_3430_ES2) {
+	if(get_cpu_rev() < CPU_3XX_ES20) {
 		return 0;
 	} else {
 		/* read scalability status and return 1 for 3410*/
@@ -386,7 +435,8 @@ void prcm_init(void)
 {
 	u32 osc_clk=0, sys_clkin_sel;
 	dpll_param *dpll_param_p;
-	u32 clk_index, sil_index;
+	u32 clk_index; 
+	u32 sil_index = 0;
 
 	/* Gauge the input clock speed and find out the sys_clkin_sel
 	 * value corresponding to the input clock.
@@ -411,7 +461,9 @@ void prcm_init(void)
 	 * and sil_index will get the values for that SysClk for the
 	 * appropriate silicon rev.
 	 */
-	sil_index = get_cpu_rev() - 1;
+	if ((get_cpu_rev() >= CPU_3XX_ES20) ||
+		(get_cpu_family() == CPU_AM35XX))
+		sil_index =  1;
 
 	/* Unlock MPU DPLL (slows things down, and needed later) */
 	sr32(CM_CLKEN_PLL_MPU, 0, 3, PLL_LOW_POWER_BYPASS);
@@ -441,7 +493,10 @@ void prcm_init(void)
 	wait_on_value(BIT0, 1, CM_IDLEST_CKGEN, LDELAY);
 
 	/* Getting the base address to PER  DPLL param table*/
-	dpll_param_p = (dpll_param *)get_per_dpll_param();
+	if (get_cpu_family() == CPU_OMAP36XX)
+		dpll_param_p = (dpll_param *)get_36x_per_dpll_param();
+	else
+		dpll_param_p = (dpll_param *)get_per_dpll_param();
 	/* Moving it to the right sysclk base */
 	dpll_param_p = dpll_param_p + clk_index;
 	/* PER DPLL */
@@ -552,12 +607,6 @@ void try_unlock_memory(void)
 void s_init(void)
 {
 	watchdog_init();
-#ifdef CONFIG_3430_AS_3410
-	/* setup the scalability control register for
-	 * 3430 to work in 3410 mode
-	 */
-	__raw_writel(0x5ABF,CONTROL_SCALABLE_OMAP_OCP);
-#endif
 	try_unlock_memory();
 	set_muxconf_regs();
 	delay(100);
