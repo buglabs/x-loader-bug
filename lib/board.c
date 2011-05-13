@@ -33,6 +33,8 @@
 #include <common.h>
 #include <part.h>
 #include <fat.h>
+#include <asm/string.h>
+#include <sha256.h>
 #include <asm/arch/mem.h>
 
 const char version_string[] =
@@ -80,6 +82,7 @@ void start_armboot (void)
  	int i, size;
 	uchar *buf;
 	int *first_instruction;
+	uchar sha_csum[32];
 	block_dev_desc_t *dev_desc = NULL;
 
    	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
@@ -133,15 +136,20 @@ void start_armboot (void)
 
 	/* if u-boot not found on mmc or
          * nand read result is erased data
-         * then serial boot 
+         * then serial boot
          */
-	/* 
+	/*
 	first_instruction = (int *)CFG_LOADADDR;
 	if((buf == (uchar *)CFG_LOADADDR) || (*first_instruction == 0xffffffff)) {
 		printf("u-boot.bin not found or blank nand contents - attempting serial boot . . .\n");
 		do_load_serial_bin(CFG_LOADADDR, 115200);
 	}
 	*/
+	sha256_csum(CFG_LOADADDR, (int)(buf - CFG_LOADADDR), sha_csum);
+	printf("SHA256: ");
+	for (i = 0; i < 32; i++)
+		printf("%x", sha_csum[i]);
+	printf("\nSize: %d\n", (int)(buf - CFG_LOADADDR));
 	/* go run U-Boot and never return */
  	((init_fnc_t *)CFG_LOADADDR)();
 
